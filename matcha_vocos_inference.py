@@ -11,7 +11,8 @@ import torch
 import argparse
 
 # Vocos imports
-from matcha.vocos import Vocos
+# from matcha.vocos import Vocos
+from vocos import Vocos
 
 # Matcha imports
 from matcha.models.matcha_tts import MatchaTTS
@@ -19,17 +20,16 @@ from matcha.text import sequence_to_text, text_to_sequence
 from matcha.utils.utils import get_user_data_dir, intersperse
 
 
-def load_model_from_hf(matcha_hf):
-    model = MatchaTTS.from_pretrained(matcha_hf)
-    model.eval()
+def load_model_from_hf(matcha_hf, device):
+    model = MatchaTTS.from_pretrained(matcha_hf, device=device)
     return model
 
 
 count_params = lambda x: f"{sum(p.numel() for p in x.parameters()):,}"
 
 
-def load_vocos_vocoder_from_hf(vocos_hf):
-    vocos = Vocos.from_pretrained(vocos_hf)
+def load_vocos_vocoder_from_hf(vocos_hf, device):
+    vocos = Vocos.from_pretrained(vocos_hf, device=device)
     return vocos
 
 
@@ -85,7 +85,7 @@ def tts(text, spk_id, n_timesteps=10, length_scale=1.0, temperature=0.70, output
     output = synthesise(text, n_spk, n_timesteps, temperature,
                         length_scale)
     print(output['mel'].shape)
-    output['waveform'] = to_vocos_waveform(output['mel'], vocos_vocoder.cuda())
+    output['waveform'] = to_vocos_waveform(output['mel'], vocos_vocoder)
 
     # Compute Real Time Factor (RTF) with HiFi-GAN
     t = (dt.datetime.now() - output['start_t']).total_seconds()
@@ -125,14 +125,14 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    matchcat = "BSC-LT/matcha-tts-cat-multispeaker"
-    vocata = "BSC-LT/vocos-mel-22khz-cat"
+    matxa = "projecte-aina/matxa-tts-cat-multispeaker"
+    alvocat = "projecte-aina/alvocat-vocos-22khz"
 
     # load MatchCat from HF
-    model = load_model_from_hf(matchcat)
+    model = load_model_from_hf(matxa, device=device).to(device)
     print(f"Model loaded! Parameter count: {count_params(model)}")
 
     # load VoCata model
-    vocos_vocoder = load_vocos_vocoder_from_hf(vocata)
+    vocos_vocoder = load_vocos_vocoder_from_hf(alvocat, device=device).to(device)
 
     tts(args.text_input, spk_id=args.speaker_id, n_timesteps=80, length_scale=args.length_scale, temperature=args.temperature, output_path=args.output_path)
